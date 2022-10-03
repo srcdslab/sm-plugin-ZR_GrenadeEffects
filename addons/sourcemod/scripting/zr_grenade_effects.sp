@@ -5,7 +5,7 @@
 
 #include <zombiereloaded>
 
-#define PLUGIN_VERSION "2.0"
+#define PLUGIN_VERSION "2.1"
 
 #define FLASH 0
 #define SMOKE 1
@@ -43,7 +43,7 @@ new Handle:h_fwdOnClientFreeze,
 public Plugin:myinfo = 
 {
 	name = "[ZR] Grenade Effects",
-	author = "FrozDark (HLModders.ru LLC)",
+	author = "FrozDark (HLModders.ru LLC), Cyclops",
 	description = "Adds Grenades Special Effects.",
 	version = PLUGIN_VERSION,
 	url = "http://www.hlmod.ru"
@@ -101,7 +101,7 @@ public OnPluginStart()
 	HookConVarChange(h_greneffects_flash_light_distance, OnConVarChanged);
 	HookConVarChange(h_greneffects_flash_light_duration, OnConVarChanged);
 	
-	AutoExecConfig(true, "grenade_effects", "zombiereloaded");
+	AutoExecConfig(true, "grenade_effects", "sourcemod/zombiereloaded");
 
 	HookEvent("round_start", OnRoundStart);
 	HookEvent("player_death", OnPlayerDeath);
@@ -449,8 +449,15 @@ public Action:CreateEvent_SmokeDetonate(Handle:timer, any:entity)
 	{
 		new Float:origin[3];
 		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
-		new userid = GetClientUserId(GetEntPropEnt(entity, Prop_Send, "m_hThrower"));
-	
+		
+		new index = GetEntPropEnt(entity, Prop_Send, "m_hThrower");
+		
+		if(index == -1)
+		{
+			return Plugin_Stop;
+		} 
+		
+		new userid = GetClientUserId(index);
 		new Handle:event = CreateEvent("smokegrenade_detonate");
 		
 		SetEventInt(event, "userid", userid);
