@@ -1,12 +1,11 @@
 #pragma semicolon 1
+#pragma newdecls required
 
 #include <sourcemod>
 #include <sdktools>
-
 #include <zombiereloaded>
 
-#define PLUGIN_VERSION "2.0"
-
+#define PLUGIN_VERSION "2.1"
 #define FLASH 0
 #define SMOKE 1
 
@@ -18,29 +17,47 @@
 #define SmokeColor	{75,255,75,255}
 #define FreezeColor	{75,75,255,255}
 
-new Float:NULL_VELOCITY[3] = {0.0, 0.0, 0.0};
+float NULL_VELOCITY[3] = {0.0, 0.0, 0.0};
 
-new BeamSprite, GlowSprite, g_beamsprite, g_halosprite;
+int
+	BeamSprite
+	, GlowSprite
+	, g_beamsprite
+	, g_halosprite;
 
-new Handle:h_greneffects_enable, bool:b_enable,
-	Handle:h_greneffects_trails, bool:b_trails,
-	Handle:h_greneffects_napalm_he, bool:b_napalm_he,
-	Handle:h_greneffects_napalm_he_duration, Float:f_napalm_he_duration,
-	Handle:h_greneffects_smoke_freeze, bool:b_smoke_freeze,
-	Handle:h_greneffects_smoke_freeze_distance, Float:f_smoke_freeze_distance,
-	Handle:h_greneffects_smoke_freeze_duration, Float:f_smoke_freeze_duration,
-	Handle:h_greneffects_flash_light, bool:b_flash_light,
-	Handle:h_greneffects_flash_light_distance, Float:f_flash_light_distance,
-	Handle:h_greneffects_flash_light_duration, Float:f_flash_light_duration;
+bool
+	b_enable
+	, b_trails
+	, b_napalm_he
+	, b_smoke_freeze
+	, b_flash_light;
 
-new Handle:h_freeze_timer[MAXPLAYERS+1];
+float
+	f_flash_light_distance
+ 	, f_flash_light_duration
+	, f_smoke_freeze_distance
+	, f_smoke_freeze_duration
+	, f_napalm_he_duration;
 
-new Handle:h_fwdOnClientFreeze,
-	Handle:h_fwdOnClientFreezed,
-	Handle:h_fwdOnClientIgnite,
-	Handle:h_fwdOnClientIgnited;
+Handle
+	h_greneffects_enable
+	, h_greneffects_trails
+	, h_greneffects_napalm_he
+	, h_greneffects_napalm_he_duration
+	, h_greneffects_smoke_freeze
+	, h_greneffects_smoke_freeze_distance
+	, h_greneffects_smoke_freeze_duration
+	, h_greneffects_flash_light
+	, h_greneffects_flash_light_distance
+	, h_greneffects_flash_light_duration
+	, h_fwdOnClientFreeze
+	, h_fwdOnClientFreezed
+	, h_fwdOnClientIgnite
+	, h_fwdOnClientIgnited;
 
-public Plugin:myinfo = 
+Handle h_freeze_timer[MAXPLAYERS+1];
+
+public Plugin myinfo = 
 {
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC)",
@@ -49,7 +66,7 @@ public Plugin:myinfo =
 	url = "http://www.hlmod.ru"
 }
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	h_fwdOnClientFreeze = CreateGlobalForward("ZR_OnClientFreeze", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
 	h_fwdOnClientFreezed = CreateGlobalForward("ZR_OnClientFreezed", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
@@ -60,7 +77,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
 	CreateConVar("zr_greneffect_version", PLUGIN_VERSION, "The plugin's version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_CHEAT|FCVAR_DONTRECORD);
 	
@@ -111,19 +128,19 @@ public OnPluginStart()
 	AddNormalSoundHook(NormalSHook);
 }
 
-public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnConVarChanged(Handle convar, const char[] oldValue, const char[] newValue)
 {
 	if (convar == h_greneffects_enable)
 	{
-		b_enable = bool:StringToInt(newValue);
+		b_enable = view_as<bool>(StringToInt(newValue));
 	}
 	else if (convar == h_greneffects_trails)
 	{
-		b_trails = bool:StringToInt(newValue);
+		b_trails = view_as<bool>(StringToInt(newValue));
 	}
 	else if (convar == h_greneffects_napalm_he)
 	{
-		b_napalm_he = bool:StringToInt(newValue);
+		b_napalm_he = view_as<bool>(StringToInt(newValue));
 	}
 	else if (convar == h_greneffects_napalm_he)
 	{
@@ -131,11 +148,11 @@ public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newV
 	}
 	else if (convar == h_greneffects_smoke_freeze)
 	{
-		b_smoke_freeze = bool:StringToInt(newValue);
+		b_smoke_freeze = view_as<bool>(StringToInt(newValue));
 	}
 	else if (convar == h_greneffects_flash_light)
 	{
-		b_flash_light = bool:StringToInt(newValue);
+		b_flash_light = view_as<bool>(StringToInt(newValue));
 	}
 	else if (convar == h_greneffects_smoke_freeze_distance)
 	{
@@ -155,7 +172,7 @@ public OnConVarChanged(Handle:convar, const String:oldValue[], const String:newV
 	}
 }
 
-public OnMapStart() 
+public void OnMapStart() 
 {
 	BeamSprite = PrecacheModel("materials/sprites/laserbeam.vmt");
 	GlowSprite = PrecacheModel("sprites/blueglow2.vmt");
@@ -166,7 +183,7 @@ public OnMapStart()
 	PrecacheSound(SOUND_FREEZE_EXPLODE);
 }
 
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	if (IsClientInGame(client))
 		ExtinguishEntity(client);
@@ -177,9 +194,9 @@ public OnClientDisconnect(client)
 	}
 }
 
-public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast) 
+public void OnRoundStart(Event event, const char[] name, bool dontBroadcast) 
 {
-	for (new client = 1; client <= MaxClients; client++)
+	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (h_freeze_timer[client] != INVALID_HANDLE)
 		{
@@ -189,13 +206,13 @@ public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-public OnPlayerHurt(Handle:event,const String:name[],bool:dontBroadcast)
+public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
 	if (!b_napalm_he)
 	{
 		return;
 	}
-	decl String:g_szWeapon[32];
+	char g_szWeapon[32];
 	GetEventString(event, "weapon", g_szWeapon, sizeof(g_szWeapon));
 	
 	if (!StrEqual(g_szWeapon, "hegrenade", false))
@@ -203,16 +220,17 @@ public OnPlayerHurt(Handle:event,const String:name[],bool:dontBroadcast)
 		return;
 	}
 	
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if (ZR_IsClientHuman(client))
 	{
 		return;
 	}
 	
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	
-	new Action:result, Float:dummy_duration = f_napalm_he_duration;
+	Action result;
+	float dummy_duration = f_napalm_he_duration;
 	result = Forward_OnClientIgnite(client, attacker, dummy_duration);
 	
 	switch (result)
@@ -232,38 +250,39 @@ public OnPlayerHurt(Handle:event,const String:name[],bool:dontBroadcast)
 	Forward_OnClientIgnited(client, attacker, dummy_duration);
 }
 
-public OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
+public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
 	OnClientDisconnect(GetClientOfUserId(GetEventInt(event, "userid")));
 }
 
-public OnHeDetonate(Handle:event, const String:name[], bool:dontBroadcast) 
+public void OnHeDetonate(Event event, const char[] name, bool dontBroadcast) 
 {
 	if (!b_enable || !b_napalm_he)
 	{
 		return;
 	}
 	
-	new Float:origin[3];
+	float origin[3];
 	origin[0] = GetEventFloat(event, "x"); origin[1] = GetEventFloat(event, "y"); origin[2] = GetEventFloat(event, "z");
 	
 	TE_SetupBeamRingPoint(origin, 10.0, 400.0, g_beamsprite, g_halosprite, 1, 1, 0.2, 100.0, 1.0, FragColor, 0, 0);
 	TE_SendToAll();
 }
 
-public OnSmokeDetonate(Handle:event, const String:name[], bool:dontBroadcast) 
+public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast) 
 {
 	if (!b_enable || !b_smoke_freeze)
 	{
 		return;
 	}
 	
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	new Float:origin[3];
+	float origin[3];
 	origin[0] = GetEventFloat(event, "x"); origin[1] = GetEventFloat(event, "y"); origin[2] = GetEventFloat(event, "z");
 	
-	new index = MaxClients+1; decl Float:xyz[3];
+	int index = MaxClients+1;
+	float xyz[3];
 	while ((index = FindEntityByClassname(index, "smokegrenade_projectile")) != -1)
 	{
 		GetEntPropVector(index, Prop_Send, "m_vecOrigin", xyz);
@@ -275,8 +294,8 @@ public OnSmokeDetonate(Handle:event, const String:name[], bool:dontBroadcast)
 	
 	origin[2] += 10.0;
 	
-	new Float:targetOrigin[3];
-	for (new i = 1; i <= MaxClients; i++)
+	float targetOrigin[3];
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i) || !IsPlayerAlive(i) || ZR_IsClientHuman(i))
 		{
@@ -287,7 +306,7 @@ public OnSmokeDetonate(Handle:event, const String:name[], bool:dontBroadcast)
 		targetOrigin[2] += 2.0;
 		if (GetVectorDistance(origin, targetOrigin) <= f_smoke_freeze_distance)
 		{
-			new Handle:trace = TR_TraceRayFilterEx(origin, targetOrigin, MASK_SOLID, RayType_EndPoint, FilterTarget, i);
+			Handle trace = TR_TraceRayFilterEx(origin, targetOrigin, MASK_SOLID, RayType_EndPoint, FilterTarget, i);
 		
 			if ((TR_DidHit(trace) && TR_GetEntityIndex(trace) == i) || (GetVectorDistance(origin, targetOrigin) <= 100.0))
 			{
@@ -319,23 +338,23 @@ public OnSmokeDetonate(Handle:event, const String:name[], bool:dontBroadcast)
 	LightCreate(SMOKE, origin);
 }
 
-public bool:FilterTarget(entity, contentsMask, any:data)
+public bool FilterTarget(int entity, int contentsMask, any data)
 {
 	return (data == entity);
 }
 
-public Action:DoFlashLight(Handle:timer, any:entity)
+public Action DoFlashLight(Handle timer, any entity)
 {
 	if (!IsValidEdict(entity))
 	{
 		return Plugin_Stop;
 	}
 		
-	decl String:g_szClassname[64];
+	char g_szClassname[64];
 	GetEdictClassname(entity, g_szClassname, sizeof(g_szClassname));
 	if (!strcmp(g_szClassname, "flashbang_projectile", false))
 	{
-		decl Float:origin[3];
+		float origin[3];
 		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
 		origin[2] += 50.0;
 		LightCreate(FLASH, origin);
@@ -345,9 +364,10 @@ public Action:DoFlashLight(Handle:timer, any:entity)
 	return Plugin_Stop;
 }
 
-bool:Freeze(client, attacker, &Float:time)
+bool Freeze(int client, int attacker, float &time)
 {
-	new Action:result, Float:dummy_duration = time;
+	Action result;
+	float dummy_duration = time; 
 	result = Forward_OnClientFreeze(client, attacker, dummy_duration);
 	
 	switch (result)
@@ -371,7 +391,7 @@ bool:Freeze(client, attacker, &Float:time)
 	SetEntityMoveType(client, MOVETYPE_NONE);
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, NULL_VELOCITY);
 	
-	new Float:vec[3];
+	float vec[3];
 	GetClientEyePosition(client, vec);
 	vec[2] -= 50.0;
 	EmitAmbientSound(SOUND_FREEZE, vec, client, SNDLEVEL_RAIDSIREN);
@@ -386,16 +406,18 @@ bool:Freeze(client, attacker, &Float:time)
 	return true;
 }
 
-public Action:Unfreeze(Handle:timer, any:client)
+public Action Unfreeze(Handle timer, any client)
 {
 	if (h_freeze_timer[client] != INVALID_HANDLE)
 	{
 		SetEntityMoveType(client, MOVETYPE_WALK);
 		h_freeze_timer[client] = INVALID_HANDLE;
 	}
+	
+	return Plugin_Continue;
 }
 
-public OnEntityCreated(entity, const String:classname[])
+public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (!b_enable)
 	{
@@ -436,34 +458,40 @@ public OnEntityCreated(entity, const String:classname[])
 	}
 }
 
-public Action:CreateEvent_SmokeDetonate(Handle:timer, any:entity)
+public Action CreateEvent_SmokeDetonate(Handle timer, any entity)
 {
 	if (!IsValidEdict(entity))
 	{
 		return Plugin_Stop;
 	}
 	
-	decl String:g_szClassname[64];
+	char g_szClassname[64];
 	GetEdictClassname(entity, g_szClassname, sizeof(g_szClassname));
 	if (!strcmp(g_szClassname, "smokegrenade_projectile", false))
 	{
-		new Float:origin[3];
+		float origin[3];
 		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
-		new userid = GetClientUserId(GetEntPropEnt(entity, Prop_Send, "m_hThrower"));
-	
-		new Handle:event = CreateEvent("smokegrenade_detonate");
+		int thrower = GetEntPropEnt(entity, Prop_Send, "m_hThrower");
+		if(thrower < 1 || !IsClientInGame(thrower))
+		{
+			return Plugin_Stop;
+		}
 		
-		SetEventInt(event, "userid", userid);
-		SetEventFloat(event, "x", origin[0]);
-		SetEventFloat(event, "y", origin[1]);
-		SetEventFloat(event, "z", origin[2]);
-		FireEvent(event);
+		int userid = GetClientUserId(thrower);
+	
+		Event event = CreateEvent("smokegrenade_detonate");
+		
+		event.SetInt("userid", userid);
+		event.SetFloat("x", origin[0]);
+		event.SetFloat("y", origin[1]);
+		event.SetFloat("z", origin[2]);
+		event.Fire();
 	}
 	
 	return Plugin_Stop;
 }
 
-BeamFollowCreate(entity, color[4])
+void BeamFollowCreate(int entity, int color[4])
 {
 	if (b_trails)
 	{
@@ -472,9 +500,14 @@ BeamFollowCreate(entity, color[4])
 	}
 }
 
-LightCreate(grenade, Float:pos[3])   
+void LightCreate(int grenade, float pos[3])   
 {  
-	new iEntity = CreateEntityByName("light_dynamic");
+	int iEntity = CreateEntityByName("light_dynamic");
+	if(!IsValidEntity(iEntity))
+	{
+		return;
+	}
+	
 	DispatchKeyValue(iEntity, "inner_cone", "0");
 	DispatchKeyValue(iEntity, "cone", "80");
 	DispatchKeyValue(iEntity, "brightness", "1");
@@ -498,20 +531,23 @@ LightCreate(grenade, Float:pos[3])
 			CreateTimer(0.2, Delete, iEntity, TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
+	
 	DispatchSpawn(iEntity);
 	TeleportEntity(iEntity, pos, NULL_VECTOR, NULL_VECTOR);
 	AcceptEntityInput(iEntity, "TurnOn");
 }
 
-public Action:Delete(Handle:timer, any:entity)
+public Action Delete(Handle timer, any entity)
 {
-	if (IsValidEdict(entity))
+	if (IsValidEntity(entity))
 	{
 		AcceptEntityInput(entity, "kill");
 	}
+	
+	return Plugin_Continue;
 }
 
-public Action:NormalSHook(clients[64], &numClients, String:sample[PLATFORM_MAX_PATH], &entity, &channel, &Float:volume, &level, &pitch, &flags)
+public Action NormalSHook(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
 {
 	if (b_smoke_freeze && !strcmp(sample, "^weapons/smokegrenade/sg_explode.wav"))
 	{
@@ -525,9 +561,9 @@ public Action:NormalSHook(clients[64], &numClients, String:sample[PLATFORM_MAX_P
 	------------------------------------------------
 */
 
-Action:Forward_OnClientFreeze(client, attacker, &Float:time)
+Action Forward_OnClientFreeze(int client, int attacker, float &time)
 {
-	decl Action:result;
+	Action result;
 	result = Plugin_Continue;
 	
 	Call_StartForward(h_fwdOnClientFreeze);
@@ -539,7 +575,7 @@ Action:Forward_OnClientFreeze(client, attacker, &Float:time)
 	return result;
 }
 
-Forward_OnClientFreezed(client, attacker, Float:time)
+void Forward_OnClientFreezed(int client, int attacker, float time)
 {
 	Call_StartForward(h_fwdOnClientFreezed);
 	Call_PushCell(client);
@@ -548,9 +584,9 @@ Forward_OnClientFreezed(client, attacker, Float:time)
 	Call_Finish();
 }
 
-Action:Forward_OnClientIgnite(client, attacker, &Float:time)
+Action Forward_OnClientIgnite(int client, int attacker, float &time)
 {
-	decl Action:result;
+	Action result;
 	result = Plugin_Continue;
 	
 	Call_StartForward(h_fwdOnClientIgnite);
@@ -562,7 +598,7 @@ Action:Forward_OnClientIgnite(client, attacker, &Float:time)
 	return result;
 }
 
-Forward_OnClientIgnited(client, attacker, Float:time)
+void Forward_OnClientIgnited(int client, int attacker, float time)
 {
 	Call_StartForward(h_fwdOnClientIgnited);
 	Call_PushCell(client);
