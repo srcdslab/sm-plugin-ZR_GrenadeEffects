@@ -3,9 +3,9 @@
 
 #include <sourcemod>
 #include <sdktools>
+
 #include <zombiereloaded>
 
-#define PLUGIN_VERSION "2.1"
 #define FLASH 0
 #define SMOKE 1
 
@@ -19,28 +19,24 @@
 
 float NULL_VELOCITY[3] = {0.0, 0.0, 0.0};
 
-int
-	BeamSprite
+int BeamSprite
 	, GlowSprite
 	, g_beamsprite
 	, g_halosprite;
 
-bool
-	b_enable
+bool b_enable
 	, b_trails
 	, b_napalm_he
 	, b_smoke_freeze
 	, b_flash_light;
 
-float
-	f_flash_light_distance
+float f_flash_light_distance
  	, f_flash_light_duration
 	, f_smoke_freeze_distance
 	, f_smoke_freeze_duration
 	, f_napalm_he_duration;
 
-Handle
-	h_greneffects_enable
+Handle h_greneffects_enable
 	, h_greneffects_trails
 	, h_greneffects_napalm_he
 	, h_greneffects_napalm_he_duration
@@ -62,7 +58,7 @@ public Plugin myinfo =
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC)",
 	description = "Adds Grenades Special Effects.",
-	version = PLUGIN_VERSION,
+	version = "2.1.0",
 	url = "http://www.hlmod.ru"
 }
 
@@ -79,8 +75,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	CreateConVar("zr_greneffect_version", PLUGIN_VERSION, "The plugin's version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_CHEAT|FCVAR_DONTRECORD);
-	
 	h_greneffects_enable = CreateConVar("zr_greneffect_enable", "1", "Enables/Disables the plugin", 0, true, 0.0, true, 1.0);
 	h_greneffects_trails = CreateConVar("zr_greneffect_trails", "1", "Enables/Disables Grenade Trails", 0, true, 0.0, true, 1.0);
 	
