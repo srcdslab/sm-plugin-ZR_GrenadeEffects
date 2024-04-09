@@ -3,13 +3,12 @@
 
 #include <sourcemod>
 #include <sdktools>
-
 #include <zombiereloaded>
 
 #define FLASH 0
 #define SMOKE 1
 
-#define SOUND_FREEZE	"physics/glass/glass_impact_bullet4.wav"
+#define SOUND_FREEZE			"physics/glass/glass_impact_bullet4.wav"
 #define SOUND_FREEZE_EXPLODE	"ui/freeze_cam.wav"
 
 #define FragColor 	{255,75,75,255}
@@ -17,101 +16,114 @@
 #define SmokeColor	{75,255,75,255}
 #define FreezeColor	{75,75,255,255}
 
+#define MAX_EDICTS 2048
+
 float NULL_VELOCITY[3] = {0.0, 0.0, 0.0};
 
-int BeamSprite
-	, GlowSprite
-	, g_beamsprite
-	, g_halosprite;
+int
+	g_iStyle
+	, BeamSprite
+	, g_iGlowSprite
+	, g_iBeamsprite
+	, g_iHalosprite
+	, g_iEdictCount;
 
-bool b_enable
-	, b_trails
-	, b_napalm_he
-	, b_smoke_freeze
-	, b_flash_light;
+bool
+	g_bEnable
+	, g_bTrails
+	, g_bVFX_HE, g_bVFX_Smoke
+	, g_bNapalm_HE
+	, g_bSmoke_Freeze
+	, g_bFlash_Light;
 
-float f_flash_light_distance
- 	, f_flash_light_duration
-	, f_smoke_freeze_distance
-	, f_smoke_freeze_duration
-	, f_napalm_he_duration;
+float
+	g_fFlash_LightDistance, g_fFlash_LightDuration
+	, g_fSmoke_FreezeDistance, g_fSmoke_FreezeDuration
+	, g_fNapalm_HE_Duration;
 
-Handle h_greneffects_enable
-	, h_greneffects_trails
-	, h_greneffects_napalm_he
-	, h_greneffects_napalm_he_duration
-	, h_greneffects_smoke_freeze
-	, h_greneffects_smoke_freeze_distance
-	, h_greneffects_smoke_freeze_duration
-	, h_greneffects_flash_light
-	, h_greneffects_flash_light_distance
-	, h_greneffects_flash_light_duration
-	, h_fwdOnClientFreeze
-	, h_fwdOnClientFreezed
-	, h_fwdOnClientIgnite
-	, h_fwdOnClientIgnited;
+ConVar
+	g_hCvar_Enable
+	, g_hCvar_VFX_Trails, g_hCvar_VFX_Style, g_hCvar_VFX_HE, g_hCvar_VFX_Smoke
+	, g_hCvar_Napalm_HE, g_hCvar_Napalm_HE_Duration
+	, g_hCvar_SmokeFreeze, g_hCvar_SmokeFreeze_Distance, g_hCvar_SmokeFreeze_Duration
+	, g_hCvar_Flash_Light, g_hCvar_Flash_Light_Distance, g_hCvar_Flash_Light_Duration;
 
-Handle h_freeze_timer[MAXPLAYERS+1];
+Handle
+	g_hFreeze_Timer[MAXPLAYERS+1]
+	, g_hfwdOnClientFreeze = INVALID_HANDLE, g_hfwdOnClientFreezed = INVALID_HANDLE
+	, g_hfwdOnClientIgnite = INVALID_HANDLE, g_hfwdOnClientIgnited = INVALID_HANDLE;
 
 public Plugin myinfo = 
 {
 	name = "[ZR] Grenade Effects",
-	author = "FrozDark (HLModders.ru LLC)",
+	author = "FrozDark (HLModders.ru LLC), .Rushaway",
 	description = "Adds Grenades Special Effects.",
-	version = "2.1.0",
+	version = "2.2.0",
 	url = "http://www.hlmod.ru"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	h_fwdOnClientFreeze = CreateGlobalForward("ZR_OnClientFreeze", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
-	h_fwdOnClientFreezed = CreateGlobalForward("ZR_OnClientFreezed", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
-	
-	h_fwdOnClientIgnite = CreateGlobalForward("ZR_OnClientIgnite", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
-	h_fwdOnClientIgnited = CreateGlobalForward("ZR_OnClientIgnited", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
-	
+	g_hfwdOnClientFreeze = CreateGlobalForward("ZR_OnClientFreeze", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_hfwdOnClientFreezed = CreateGlobalForward("ZR_OnClientFreezed", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
+
+	g_hfwdOnClientIgnite = CreateGlobalForward("ZR_OnClientIgnite", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_hfwdOnClientIgnited = CreateGlobalForward("ZR_OnClientIgnited", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
+
 	return APLRes_Success;
 }
 
 public void OnPluginStart()
 {
-	h_greneffects_enable = CreateConVar("zr_greneffect_enable", "1", "Enables/Disables the plugin", 0, true, 0.0, true, 1.0);
-	h_greneffects_trails = CreateConVar("zr_greneffect_trails", "1", "Enables/Disables Grenade Trails", 0, true, 0.0, true, 1.0);
-	
-	h_greneffects_napalm_he = CreateConVar("zr_greneffect_napalm_he", "1", "Changes a he grenade to a napalm grenade", 0, true, 0.0, true, 1.0);
-	h_greneffects_napalm_he_duration = CreateConVar("zr_greneffect_napalm_he_duration", "6", "The napalm duration", 0, true, 0.0);
-	
-	h_greneffects_smoke_freeze = CreateConVar("zr_greneffect_smoke_freeze", "1", "Changes a smoke grenade to a freeze grenade", 0, true, 0.0, true, 1.0);
-	h_greneffects_smoke_freeze_distance = CreateConVar("zr_greneffect_smoke_freeze_distance", "600", "The freeze grenade distance", 0, true, 100.0);
-	h_greneffects_smoke_freeze_duration = CreateConVar("zr_greneffect_smoke_freeze_duration", "4", "The freeze duration in seconds", 0, true, 1.0);
-	
-	h_greneffects_flash_light = CreateConVar("zr_greneffect_flash_light", "1", "Changes a flashbang to a flashlight", 0, true, 0.0, true, 1.0);
-	h_greneffects_flash_light_distance = CreateConVar("zr_greneffect_flash_light_distance", "1000", "The light distance", 0, true, 100.0);
-	h_greneffects_flash_light_duration = CreateConVar("zr_greneffect_flash_light_duration", "15.0", "The light duration in seconds", 0, true, 1.0);
-	
-	b_enable = GetConVarBool(h_greneffects_enable);
-	b_trails = GetConVarBool(h_greneffects_trails);
-	b_napalm_he = GetConVarBool(h_greneffects_napalm_he);
-	b_smoke_freeze = GetConVarBool(h_greneffects_smoke_freeze);
-	b_flash_light = GetConVarBool(h_greneffects_flash_light);
-	
-	f_napalm_he_duration = GetConVarFloat(h_greneffects_napalm_he_duration);
-	f_smoke_freeze_distance = GetConVarFloat(h_greneffects_smoke_freeze_distance);
-	f_smoke_freeze_duration = GetConVarFloat(h_greneffects_smoke_freeze_duration);
-	f_flash_light_distance = GetConVarFloat(h_greneffects_flash_light_distance);
-	f_flash_light_duration = GetConVarFloat(h_greneffects_flash_light_duration);
-	
-	HookConVarChange(h_greneffects_enable, OnConVarChanged);
-	HookConVarChange(h_greneffects_trails, OnConVarChanged);
-	HookConVarChange(h_greneffects_napalm_he, OnConVarChanged);
-	HookConVarChange(h_greneffects_napalm_he_duration, OnConVarChanged);
-	HookConVarChange(h_greneffects_smoke_freeze, OnConVarChanged);
-	HookConVarChange(h_greneffects_smoke_freeze_distance, OnConVarChanged);
-	HookConVarChange(h_greneffects_smoke_freeze_duration, OnConVarChanged);
-	HookConVarChange(h_greneffects_flash_light, OnConVarChanged);
-	HookConVarChange(h_greneffects_flash_light_distance, OnConVarChanged);
-	HookConVarChange(h_greneffects_flash_light_duration, OnConVarChanged);
-	
+	// Global plugin
+	g_hCvar_Enable = CreateConVar("zr_greneffect_enable", "1", "Enables/Disables the plugin", 0, true, 0.0, true, 1.0);
+
+	// VFX
+	g_hCvar_VFX_Trails = CreateConVar("zr_greneffect_trails", "1", "Enables/Disables Grenade Trails", 0, true, 0.0, true, 1.0);
+	g_hCvar_VFX_Style = CreateConVar("zr_greneffect_style", "0", "Changes style [0 = Default | 1 = Smaller | 2 = Bigger]", 0, true, 0.0, true, 2.0);
+	g_hCvar_VFX_HE = CreateConVar("zr_greneffect_he", "1", "Enables/Disables HE Grenade ring Effects when detonate", 0, true, 0.0, true, 1.0);
+	g_hCvar_VFX_Smoke = CreateConVar("zr_greneffect_smoke", "1", "Enables/Disables Smoke Grenade ring Effects when detonate", 0, true, 0.0, true, 1.0);
+
+	g_hCvar_Napalm_HE = CreateConVar("zr_greneffect_napalm_he", "1", "Changes a he grenade to a napalm grenade", 0, true, 0.0, true, 1.0);
+	g_hCvar_Napalm_HE_Duration = CreateConVar("zr_greneffect_napalm_he_duration", "6", "The napalm duration", 0, true, 0.0);
+
+	g_hCvar_SmokeFreeze = CreateConVar("zr_greneffect_smoke_freeze", "1", "Changes a smoke grenade to a freeze grenade", 0, true, 0.0, true, 1.0);
+	g_hCvar_SmokeFreeze_Distance = CreateConVar("zr_greneffect_smoke_freeze_distance", "600", "The freeze grenade distance", 0, true, 100.0);
+	g_hCvar_SmokeFreeze_Duration = CreateConVar("zr_greneffect_smoke_freeze_duration", "4", "The freeze duration in seconds", 0, true, 1.0);
+
+	g_hCvar_Flash_Light = CreateConVar("zr_greneffect_flash_light", "1", "Changes a flashbang to a flashlight", 0, true, 0.0, true, 1.0);
+	g_hCvar_Flash_Light_Distance = CreateConVar("zr_greneffect_flash_light_distance", "1000", "The light distance", 0, true, 100.0);
+	g_hCvar_Flash_Light_Duration = CreateConVar("zr_greneffect_flash_light_duration", "15.0", "The light duration in seconds", 0, true, 1.0);
+
+	g_bEnable = GetConVarBool(g_hCvar_Enable);
+	g_bTrails = GetConVarBool(g_hCvar_VFX_Trails);
+	g_iStyle = GetConVarInt(g_hCvar_VFX_Style);
+	g_bVFX_HE = GetConVarBool(g_hCvar_VFX_HE);
+	g_bVFX_Smoke = GetConVarBool(g_hCvar_VFX_Smoke);
+	g_bNapalm_HE = GetConVarBool(g_hCvar_Napalm_HE);
+	g_bSmoke_Freeze = GetConVarBool(g_hCvar_SmokeFreeze);
+	g_bFlash_Light = GetConVarBool(g_hCvar_Flash_Light);
+
+	g_fNapalm_HE_Duration = GetConVarFloat(g_hCvar_Napalm_HE_Duration);
+	g_fSmoke_FreezeDistance = GetConVarFloat(g_hCvar_SmokeFreeze_Distance);
+	g_fSmoke_FreezeDuration = GetConVarFloat(g_hCvar_SmokeFreeze_Duration);
+	g_fFlash_LightDistance = GetConVarFloat(g_hCvar_Flash_Light_Distance);
+	g_fFlash_LightDuration = GetConVarFloat(g_hCvar_Flash_Light_Duration);
+
+	HookConVarChange(g_hCvar_Enable, OnConVarChanged);
+	HookConVarChange(g_hCvar_VFX_Trails, OnConVarChanged);
+	HookConVarChange(g_hCvar_VFX_Style, OnConVarChanged);
+	HookConVarChange(g_hCvar_VFX_HE, OnConVarChanged);
+	HookConVarChange(g_hCvar_VFX_Smoke, OnConVarChanged);
+	HookConVarChange(g_hCvar_Napalm_HE, OnConVarChanged);
+	HookConVarChange(g_hCvar_Napalm_HE_Duration, OnConVarChanged);
+	HookConVarChange(g_hCvar_SmokeFreeze, OnConVarChanged);
+	HookConVarChange(g_hCvar_SmokeFreeze_Distance, OnConVarChanged);
+	HookConVarChange(g_hCvar_SmokeFreeze_Duration, OnConVarChanged);
+	HookConVarChange(g_hCvar_Flash_Light, OnConVarChanged);
+	HookConVarChange(g_hCvar_Flash_Light_Distance, OnConVarChanged);
+	HookConVarChange(g_hCvar_Flash_Light_Duration, OnConVarChanged);
+
 	AutoExecConfig(true, "grenade_effects", "zombiereloaded");
 
 	HookEvent("round_start", OnRoundStart);
@@ -124,55 +136,67 @@ public void OnPluginStart()
 
 public void OnConVarChanged(Handle convar, const char[] oldValue, const char[] newValue)
 {
-	if (convar == h_greneffects_enable)
+	if (convar == g_hCvar_Enable)
 	{
-		b_enable = view_as<bool>(StringToInt(newValue));
+		g_bEnable = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_trails)
+	else if (convar == g_hCvar_VFX_Trails)
 	{
-		b_trails = view_as<bool>(StringToInt(newValue));
+		g_bTrails = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_napalm_he)
+	else if (convar == g_hCvar_VFX_Style)
 	{
-		b_napalm_he = view_as<bool>(StringToInt(newValue));
+		g_iStyle = StringToInt(newValue);
 	}
-	else if (convar == h_greneffects_napalm_he)
+	else if (convar == g_hCvar_VFX_HE)
 	{
-		f_napalm_he_duration = StringToFloat(newValue);
+		g_bVFX_HE = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_smoke_freeze)
+	else if (convar == g_hCvar_VFX_Smoke)
 	{
-		b_smoke_freeze = view_as<bool>(StringToInt(newValue));
+		g_bVFX_Smoke = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_flash_light)
+	else if (convar == g_hCvar_Napalm_HE)
 	{
-		b_flash_light = view_as<bool>(StringToInt(newValue));
+		g_bNapalm_HE = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_smoke_freeze_distance)
+	else if (convar == g_hCvar_Napalm_HE)
 	{
-		f_smoke_freeze_distance = StringToFloat(newValue);
+		g_fNapalm_HE_Duration = StringToFloat(newValue);
 	}
-	else if (convar == h_greneffects_smoke_freeze_duration)
+	else if (convar == g_hCvar_SmokeFreeze)
 	{
-		f_smoke_freeze_duration = StringToFloat(newValue);
+		g_bSmoke_Freeze = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_flash_light_distance)
+	else if (convar == g_hCvar_Flash_Light)
 	{
-		f_flash_light_distance = StringToFloat(newValue);
+		g_bFlash_Light = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == h_greneffects_flash_light_duration)
+	else if (convar == g_hCvar_SmokeFreeze_Distance)
 	{
-		f_flash_light_duration = StringToFloat(newValue);
+		g_fSmoke_FreezeDistance = StringToFloat(newValue);
+	}
+	else if (convar == g_hCvar_SmokeFreeze_Duration)
+	{
+		g_fSmoke_FreezeDuration = StringToFloat(newValue);
+	}
+	else if (convar == g_hCvar_Flash_Light_Distance)
+	{
+		g_fFlash_LightDistance = StringToFloat(newValue);
+	}
+	else if (convar == g_hCvar_Flash_Light_Duration)
+	{
+		g_fFlash_LightDuration = StringToFloat(newValue);
 	}
 }
 
 public void OnMapStart() 
 {
 	BeamSprite = PrecacheModel("materials/sprites/laserbeam.vmt");
-	GlowSprite = PrecacheModel("sprites/blueglow2.vmt");
-	g_beamsprite = PrecacheModel("materials/sprites/lgtning.vmt");
-	g_halosprite = PrecacheModel("materials/sprites/halo01.vmt");
-	
+	g_iGlowSprite = PrecacheModel("sprites/blueglow2.vmt");
+	g_iBeamsprite = PrecacheModel("materials/sprites/lgtning.vmt");
+	g_iHalosprite = PrecacheModel("materials/sprites/halo01.vmt");
+
 	PrecacheSound(SOUND_FREEZE);
 	PrecacheSound(SOUND_FREEZE_EXPLODE);
 }
@@ -181,10 +205,10 @@ public void OnClientDisconnect(int client)
 {
 	if (IsClientInGame(client))
 		ExtinguishEntity(client);
-	if (h_freeze_timer[client] != INVALID_HANDLE)
+	if (g_hFreeze_Timer[client] != INVALID_HANDLE)
 	{
-		KillTimer(h_freeze_timer[client]);
-		h_freeze_timer[client] = INVALID_HANDLE;
+		KillTimer(g_hFreeze_Timer[client]);
+		g_hFreeze_Timer[client] = INVALID_HANDLE;
 	}
 }
 
@@ -192,41 +216,41 @@ public void OnRoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int client = 1; client <= MaxClients; client++)
 	{
-		if (h_freeze_timer[client] != INVALID_HANDLE)
+		if (g_hFreeze_Timer[client] != INVALID_HANDLE)
 		{
-			KillTimer(h_freeze_timer[client]);
-			h_freeze_timer[client] = INVALID_HANDLE;
+			KillTimer(g_hFreeze_Timer[client]);
+			g_hFreeze_Timer[client] = INVALID_HANDLE;
 		}
 	}
 }
 
 public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!b_napalm_he)
+	if (!g_bNapalm_HE)
 	{
 		return;
 	}
 	char g_szWeapon[32];
 	GetEventString(event, "weapon", g_szWeapon, sizeof(g_szWeapon));
-	
-	if (!StrEqual(g_szWeapon, "hegrenade", false))
+
+	if (strcmp(g_szWeapon, "hegrenade", false) != 0)
 	{
 		return;
 	}
-	
+
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-	
+
 	if (ZR_IsClientHuman(client))
 	{
 		return;
 	}
-	
+
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	
+
 	Action result;
-	float dummy_duration = f_napalm_he_duration;
+	float dummy_duration = g_fNapalm_HE_Duration;
 	result = Forward_OnClientIgnite(client, attacker, dummy_duration);
-	
+
 	switch (result)
 	{
 		case Plugin_Handled, Plugin_Stop :
@@ -235,12 +259,12 @@ public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		}
 		case Plugin_Continue :
 		{
-			dummy_duration = f_napalm_he_duration;
+			dummy_duration = g_fNapalm_HE_Duration;
 		}
 	}
-	
+
 	IgniteEntity(client, dummy_duration);
-	
+
 	Forward_OnClientIgnited(client, attacker, dummy_duration);
 }
 
@@ -251,30 +275,38 @@ public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 
 public void OnHeDetonate(Event event, const char[] name, bool dontBroadcast) 
 {
-	if (!b_enable || !b_napalm_he)
+	if (!g_bEnable || !g_bVFX_HE)
 	{
 		return;
 	}
-	
+
 	float origin[3];
 	origin[0] = GetEventFloat(event, "x"); origin[1] = GetEventFloat(event, "y"); origin[2] = GetEventFloat(event, "z");
-	
-	TE_SetupBeamRingPoint(origin, 10.0, 400.0, g_beamsprite, g_halosprite, 1, 1, 0.2, 100.0, 1.0, FragColor, 0, 0);
+
+	switch (g_iStyle)
+	{
+		case 1:
+			TE_SetupBeamRingPoint(origin, 10.0, 400.0, g_iBeamsprite, g_iHalosprite, 1, 1, 0.2, 10.0, 1.0, FragColor, 0, 0);
+		case 2:
+			TE_SetupBeamRingPoint(origin, 10.0, 400.0, g_iBeamsprite, g_iHalosprite, 1, 1, 0.2, 190.0, 1.0, FragColor, 0, 0);
+		default:
+			TE_SetupBeamRingPoint(origin, 10.0, 400.0, g_iBeamsprite, g_iHalosprite, 1, 1, 0.2, 100.0, 1.0, FragColor, 0, 0);
+	}
 	TE_SendToAll();
 }
 
 public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast) 
 {
-	if (!b_enable || !b_smoke_freeze)
+	if (!g_bEnable || !g_bSmoke_Freeze)
 	{
 		return;
 	}
-	
+
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
-	
+
 	float origin[3];
 	origin[0] = GetEventFloat(event, "x"); origin[1] = GetEventFloat(event, "y"); origin[2] = GetEventFloat(event, "z");
-	
+
 	int index = MaxClients+1;
 	float xyz[3];
 	while ((index = FindEntityByClassname(index, "smokegrenade_projectile")) != -1)
@@ -285,9 +317,9 @@ public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast)
 			AcceptEntityInput(index, "kill");
 		}
 	}
-	
+
 	origin[2] += 10.0;
-	
+
 	float targetOrigin[3];
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -295,40 +327,52 @@ public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast)
 		{
 			continue;
 		}
-		
+
 		GetClientAbsOrigin(i, targetOrigin);
 		targetOrigin[2] += 2.0;
-		if (GetVectorDistance(origin, targetOrigin) <= f_smoke_freeze_distance)
+		if (GetVectorDistance(origin, targetOrigin) <= g_fSmoke_FreezeDistance)
 		{
 			Handle trace = TR_TraceRayFilterEx(origin, targetOrigin, MASK_SOLID, RayType_EndPoint, FilterTarget, i);
-		
+
 			if ((TR_DidHit(trace) && TR_GetEntityIndex(trace) == i) || (GetVectorDistance(origin, targetOrigin) <= 100.0))
 			{
-				Freeze(i, client, f_smoke_freeze_duration);
+				Freeze(i, client, g_fSmoke_FreezeDuration);
 				CloseHandle(trace);
 			}
-				
+
 			else
 			{
 				CloseHandle(trace);
-				
+
 				GetClientEyePosition(i, targetOrigin);
 				targetOrigin[2] -= 2.0;
-		
+
 				trace = TR_TraceRayFilterEx(origin, targetOrigin, MASK_SOLID, RayType_EndPoint, FilterTarget, i);
-			
+
 				if ((TR_DidHit(trace) && TR_GetEntityIndex(trace) == i) || (GetVectorDistance(origin, targetOrigin) <= 100.0))
 				{
-					Freeze(i, client, f_smoke_freeze_duration);
+					Freeze(i, client, g_fSmoke_FreezeDuration);
 				}
-				
+
 				CloseHandle(trace);
 			}
 		}
 	}
-	
-	TE_SetupBeamRingPoint(origin, 10.0, f_smoke_freeze_distance, g_beamsprite, g_halosprite, 1, 1, 0.2, 100.0, 1.0, FreezeColor, 0, 0);
-	TE_SendToAll();
+
+	if (g_bVFX_Smoke)
+	{
+		switch (g_iStyle)
+		{
+			case 1:
+				TE_SetupBeamRingPoint(origin, 10.0, g_fSmoke_FreezeDistance, g_iBeamsprite, g_iHalosprite, 1, 1, 0.2, 20.0, 1.0, FreezeColor, 0, 0);
+			case 2:
+				TE_SetupBeamRingPoint(origin, 10.0, g_fSmoke_FreezeDistance, g_iBeamsprite, g_iHalosprite, 1, 1, 0.2, 180.0, 1.0, FreezeColor, 0, 0);
+			default:
+				TE_SetupBeamRingPoint(origin, 10.0, g_fSmoke_FreezeDistance, g_iBeamsprite, g_iHalosprite, 1, 1, 0.2, 100.0, 1.0, FreezeColor, 0, 0);
+		}
+		TE_SendToAll();
+	}
+
 	LightCreate(SMOKE, origin);
 }
 
@@ -343,7 +387,7 @@ public Action DoFlashLight(Handle timer, any entity)
 	{
 		return Plugin_Stop;
 	}
-		
+
 	char g_szClassname[64];
 	GetEdictClassname(entity, g_szClassname, sizeof(g_szClassname));
 	if (!strcmp(g_szClassname, "flashbang_projectile", false))
@@ -354,7 +398,7 @@ public Action DoFlashLight(Handle timer, any entity)
 		LightCreate(FLASH, origin);
 		AcceptEntityInput(entity, "kill");
 	}
-	
+
 	return Plugin_Stop;
 }
 
@@ -363,7 +407,7 @@ bool Freeze(int client, int attacker, float &time)
 	Action result;
 	float dummy_duration = time; 
 	result = Forward_OnClientFreeze(client, attacker, dummy_duration);
-	
+
 	switch (result)
 	{
 		case Plugin_Handled, Plugin_Stop :
@@ -375,60 +419,60 @@ bool Freeze(int client, int attacker, float &time)
 			dummy_duration = time;
 		}
 	}
-	
-	if (h_freeze_timer[client] != INVALID_HANDLE)
+
+	if (g_hFreeze_Timer[client] != INVALID_HANDLE)
 	{
-		KillTimer(h_freeze_timer[client]);
-		h_freeze_timer[client] = INVALID_HANDLE;
+		KillTimer(g_hFreeze_Timer[client]);
+		g_hFreeze_Timer[client] = INVALID_HANDLE;
 	}
-	
+
 	SetEntityMoveType(client, MOVETYPE_NONE);
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, NULL_VELOCITY);
-	
+
 	float vec[3];
 	GetClientEyePosition(client, vec);
 	vec[2] -= 50.0;
 	EmitAmbientSound(SOUND_FREEZE, vec, client, SNDLEVEL_RAIDSIREN);
 
-	TE_SetupGlowSprite(vec, GlowSprite, dummy_duration, 2.0, 50);
+	TE_SetupGlowSprite(vec, g_iGlowSprite, dummy_duration, 2.0, 50);
 	TE_SendToAll();
-	
-	h_freeze_timer[client] = CreateTimer(dummy_duration, Unfreeze, client, TIMER_FLAG_NO_MAPCHANGE);
-	
+
+	g_hFreeze_Timer[client] = CreateTimer(dummy_duration, Unfreeze, client, TIMER_FLAG_NO_MAPCHANGE);
+
 	Forward_OnClientFreezed(client, attacker, dummy_duration);
-	
+
 	return true;
 }
 
 public Action Unfreeze(Handle timer, any client)
 {
-	if (h_freeze_timer[client] != INVALID_HANDLE)
+	if (g_hFreeze_Timer[client] != INVALID_HANDLE)
 	{
 		SetEntityMoveType(client, MOVETYPE_WALK);
-		h_freeze_timer[client] = INVALID_HANDLE;
+		g_hFreeze_Timer[client] = INVALID_HANDLE;
 	}
-	
+
 	return Plugin_Continue;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
 {
-	if (!b_enable)
+	if (!g_bEnable)
 	{
 		return;
 	}
-	
+
 	if (!strcmp(classname, "hegrenade_projectile"))
 	{
 		BeamFollowCreate(entity, FragColor);
-		if (b_napalm_he)
+		if (g_bNapalm_HE)
 		{
 			IgniteEntity(entity, 2.0);
 		}
 	}
 	else if (!strcmp(classname, "flashbang_projectile"))
 	{
-		if (b_flash_light)
+		if (g_bFlash_Light)
 		{
 			CreateTimer(1.3, DoFlashLight, entity, TIMER_FLAG_NO_MAPCHANGE);
 		}
@@ -436,7 +480,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if (!strcmp(classname, "smokegrenade_projectile"))
 	{
-		if (b_smoke_freeze)
+		if (g_bSmoke_Freeze)
 		{
 			BeamFollowCreate(entity, FreezeColor);
 			CreateTimer(1.3, CreateEvent_SmokeDetonate, entity, TIMER_FLAG_NO_MAPCHANGE);
@@ -446,7 +490,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 			BeamFollowCreate(entity, SmokeColor);
 		}
 	}
-	else if (b_smoke_freeze && !strcmp(classname, "env_particlesmokegrenade"))
+	else if (g_bSmoke_Freeze && !strcmp(classname, "env_particlesmokegrenade"))
 	{
 		AcceptEntityInput(entity, "Kill");
 	}
@@ -458,7 +502,7 @@ public Action CreateEvent_SmokeDetonate(Handle timer, any entity)
 	{
 		return Plugin_Stop;
 	}
-	
+
 	char g_szClassname[64];
 	GetEdictClassname(entity, g_szClassname, sizeof(g_szClassname));
 	if (!strcmp(g_szClassname, "smokegrenade_projectile", false))
@@ -470,38 +514,53 @@ public Action CreateEvent_SmokeDetonate(Handle timer, any entity)
 		{
 			return Plugin_Stop;
 		}
-		
+
 		int userid = GetClientUserId(thrower);
-	
+
 		Event event = CreateEvent("smokegrenade_detonate");
-		
+
 		event.SetInt("userid", userid);
 		event.SetFloat("x", origin[0]);
 		event.SetFloat("y", origin[1]);
 		event.SetFloat("z", origin[2]);
 		event.Fire();
 	}
-	
+
 	return Plugin_Stop;
 }
 
 void BeamFollowCreate(int entity, int color[4])
 {
-	if (b_trails)
+	if (g_bTrails)
 	{
-		TE_SetupBeamFollow(entity, BeamSprite,	0, 1.0, 10.0, 10.0, 5, color);
+		switch (g_iStyle)
+		{
+			case 1:
+				TE_SetupBeamFollow(entity, BeamSprite,	0, 1.0, 2.0, 2.0, 5, color);
+			case 2:
+				TE_SetupBeamFollow(entity, BeamSprite,	0, 1.0, 18.0, 18.0, 5, color);
+			default:
+				TE_SetupBeamFollow(entity, BeamSprite,	0, 1.0, 10.0, 10.0, 5, color);
+		}
 		TE_SendToAll();	
 	}
 }
 
 void LightCreate(int grenade, float pos[3])   
 {  
+	// Check if we will exceed the max edicts limit to prevent server crash
+	GetEdictsCount();
+	if(g_iEdictCount >= MAX_EDICTS - 148)
+	{
+		return;
+	}
+
 	int iEntity = CreateEntityByName("light_dynamic");
 	if(!IsValidEntity(iEntity))
 	{
 		return;
 	}
-	
+
 	DispatchKeyValue(iEntity, "inner_cone", "0");
 	DispatchKeyValue(iEntity, "cone", "80");
 	DispatchKeyValue(iEntity, "brightness", "1");
@@ -513,19 +572,19 @@ void LightCreate(int grenade, float pos[3])
 		case FLASH : 
 		{
 			DispatchKeyValue(iEntity, "_light", "255 255 255 255");
-			DispatchKeyValueFloat(iEntity, "distance", f_flash_light_distance);
+			DispatchKeyValueFloat(iEntity, "distance", g_fFlash_LightDistance);
 			EmitSoundToAll("items/nvg_on.wav", iEntity, SNDCHAN_WEAPON);
-			CreateTimer(f_flash_light_duration, Delete, iEntity, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(g_fFlash_LightDuration, Delete, iEntity, TIMER_FLAG_NO_MAPCHANGE);
 		}
 		case SMOKE : 
 		{
 			DispatchKeyValue(iEntity, "_light", "75 75 255 255");
-			DispatchKeyValueFloat(iEntity, "distance", f_smoke_freeze_distance);
+			DispatchKeyValueFloat(iEntity, "distance", g_fSmoke_FreezeDistance);
 			EmitSoundToAll(SOUND_FREEZE_EXPLODE, iEntity, SNDCHAN_WEAPON);
 			CreateTimer(0.2, Delete, iEntity, TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
-	
+
 	DispatchSpawn(iEntity);
 	TeleportEntity(iEntity, pos, NULL_VECTOR, NULL_VECTOR);
 	AcceptEntityInput(iEntity, "TurnOn");
@@ -537,17 +596,30 @@ public Action Delete(Handle timer, any entity)
 	{
 		AcceptEntityInput(entity, "kill");
 	}
-	
+
 	return Plugin_Continue;
 }
 
 public Action NormalSHook(int clients[64], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags)
 {
-	if (b_smoke_freeze && !strcmp(sample, "^weapons/smokegrenade/sg_explode.wav"))
+	if (g_bSmoke_Freeze && !strcmp(sample, "^weapons/smokegrenade/sg_explode.wav"))
 	{
 		return Plugin_Handled;
 	}
 	return Plugin_Continue;
+}
+
+stock void GetEdictsCount()
+{
+	int iCount = 0;
+
+	for (int entity = 1; entity <= MAX_EDICTS; entity++)
+	{
+		if (IsValidEdict(entity))
+			iCount++;
+	}
+
+	g_iEdictCount = iCount;
 }
 
 /*
@@ -559,19 +631,19 @@ Action Forward_OnClientFreeze(int client, int attacker, float &time)
 {
 	Action result;
 	result = Plugin_Continue;
-	
-	Call_StartForward(h_fwdOnClientFreeze);
+
+	Call_StartForward(g_hfwdOnClientFreeze);
 	Call_PushCell(client);
 	Call_PushCell(attacker);
 	Call_PushFloatRef(time);
 	Call_Finish(result);
-	
+
 	return result;
 }
 
 void Forward_OnClientFreezed(int client, int attacker, float time)
 {
-	Call_StartForward(h_fwdOnClientFreezed);
+	Call_StartForward(g_hfwdOnClientFreezed);
 	Call_PushCell(client);
 	Call_PushCell(attacker);
 	Call_PushFloat(time);
@@ -582,19 +654,19 @@ Action Forward_OnClientIgnite(int client, int attacker, float &time)
 {
 	Action result;
 	result = Plugin_Continue;
-	
-	Call_StartForward(h_fwdOnClientIgnite);
+
+	Call_StartForward(g_hfwdOnClientIgnite);
 	Call_PushCell(client);
 	Call_PushCell(attacker);
 	Call_PushFloatRef(time);
 	Call_Finish(result);
-	
+
 	return result;
 }
 
 void Forward_OnClientIgnited(int client, int attacker, float time)
 {
-	Call_StartForward(h_fwdOnClientIgnited);
+	Call_StartForward(g_hfwdOnClientIgnited);
 	Call_PushCell(client);
 	Call_PushCell(attacker);
 	Call_PushFloat(time);
