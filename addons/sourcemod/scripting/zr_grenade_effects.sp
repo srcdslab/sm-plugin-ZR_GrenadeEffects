@@ -44,7 +44,7 @@ float
 ConVar
 	g_hCvar_Enable
 	, g_hCvar_VFX_Trails, g_hCvar_VFX_Style, g_hCvar_VFX_HE, g_hCvar_VFX_Smoke
-	, g_hCvar_Napalm_HE, g_hCvar_Napalm_HE_Duration
+	, g_hCvar_Napalm_HE, g_hCvar_Napalm_HE_Class_Duration, g_hCvar_Napalm_HE_Duration
 	, g_hCvar_SmokeFreeze, g_hCvar_SmokeFreeze_Distance, g_hCvar_SmokeFreeze_Duration
 	, g_hCvar_Flash_Light, g_hCvar_Flash_Light_Distance, g_hCvar_Flash_Light_Duration;
 
@@ -58,7 +58,7 @@ public Plugin myinfo =
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC), .Rushaway",
 	description = "Adds Grenades Special Effects.",
-	version = "2.2.0",
+	version = "2.3.0",
 	url = "http://www.hlmod.ru"
 }
 
@@ -85,6 +85,7 @@ public void OnPluginStart()
 	g_hCvar_VFX_Smoke = CreateConVar("zr_greneffect_smoke", "1", "Enables/Disables Smoke Grenade ring Effects when detonate", 0, true, 0.0, true, 1.0);
 
 	g_hCvar_Napalm_HE = CreateConVar("zr_greneffect_napalm_he", "1", "Changes a he grenade to a napalm grenade", 0, true, 0.0, true, 1.0);
+	g_hCvar_Napalm_HE_Class_Duration = CreateConVar("zr_greneffect_napalm_he_class", "0", "Use the napalm duration from playerclasses.txt [0= No | 1= Yes]", 0, true, 0.0, true, 1.0);
 	g_hCvar_Napalm_HE_Duration = CreateConVar("zr_greneffect_napalm_he_duration", "6", "The napalm duration", 0, true, 0.0);
 
 	g_hCvar_SmokeFreeze = CreateConVar("zr_greneffect_smoke_freeze", "1", "Changes a smoke grenade to a freeze grenade", 0, true, 0.0, true, 1.0);
@@ -248,7 +249,17 @@ public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
 	Action result;
-	float dummy_duration = g_fNapalm_HE_Duration;
+	bool bHasNapalm = false;
+	float fNapalmClassDuration;
+
+	if (g_hCvar_Napalm_HE_Class_Duration.BoolValue)
+	{
+		fNapalmClassDuration = ZR_ClassGetNapalmTime(client);
+		if (fNapalmClassDuration > 0.0)
+			bHasNapalm = true;
+	}
+
+	float dummy_duration = bHasNapalm ? fNapalmClassDuration : g_fNapalm_HE_Duration;
 	result = Forward_OnClientIgnite(client, attacker, dummy_duration);
 
 	switch (result)
