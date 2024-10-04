@@ -249,17 +249,12 @@ public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 
 	Action result;
-	bool bHasNapalm = false;
-	float fNapalmClassDuration;
+	float fNapalmClassDuration = 0.0;
 
 	if (g_hCvar_Napalm_HE_Class_Duration.BoolValue)
-	{
 		fNapalmClassDuration = ZR_ClassGetNapalmTime(client);
-		if (fNapalmClassDuration > 0.0)
-			bHasNapalm = true;
-	}
 
-	float dummy_duration = bHasNapalm ? fNapalmClassDuration : g_fNapalm_HE_Duration;
+	float dummy_duration = fNapalmClassDuration > 0.0 ? fNapalmClassDuration : g_fNapalm_HE_Duration;
 	result = Forward_OnClientIgnite(client, attacker, dummy_duration);
 
 	switch (result)
