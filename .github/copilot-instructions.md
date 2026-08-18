@@ -12,21 +12,20 @@ This repository contains a SourceMod plugin for Counter-Strike: Source/Global Of
 
 ### Core Technologies
 - **Language**: SourcePawn (.sp files)
-- **Platform**: SourceMod 1.11.0+ (Source engine game modification framework)
-- **Build System**: SourceKnight 0.2 (automated SourceMod compilation)
+- **Platform**: SourceMod 1.12.x (Source engine game modification framework)
+- **Build System**: Native GitHub Actions (`.github/workflows/ci.yml`) using `rumblefrog/setup-sp` and `spcomp`
 - **Dependencies**: 
-  - SourceMod 1.11.0-git6934+
+  - SourceMod 1.12.x
   - Zombie Reloaded plugin (for ZR_* natives)
 
 ### Build Process
-```bash
-# Build using SourceKnight (handled by CI/CD)
-sourceknight build
-```
-The build system automatically:
-1. Downloads SourceMod and dependencies
-2. Compiles `.sp` files to `.smx` plugins
-3. Packages for distribution
+Builds run automatically via GitHub Actions on push/PR. The workflow:
+1. Sets up the SourcePawn compiler (`rumblefrog/setup-sp`, SourceMod 1.12.x)
+2. Clones the Zombie Reloaded include dependency
+3. Compiles `.sp` files to `.smx` plugins with `spcomp`
+4. Packages and uploads build artifacts, releasing under the `latest` tag on master/main
+
+To build locally, install `spcomp` and run it against `zr_grenade_effects.sp` with the Zombie Reloaded include directory on the include path (`-i`).
 
 ## Project Structure
 
@@ -39,14 +38,12 @@ addons/sourcemod/scripting/
 .github/
 ├── workflows/ci.yml               # Automated build/release
 └── copilot-instructions.md        # This file
-
-sourceknight.yaml                  # Build configuration
 ```
 
 ### Key Files
 - **`zr_grenade_effects.sp`**: Main plugin implementation with all game logic
 - **`zr_grenade_effects.inc`**: Public API defining forwards for other plugins
-- **`sourceknight.yaml`**: Build dependencies and compilation settings
+- **`.github/workflows/ci.yml`**: Build dependencies and compilation settings
 
 ## Code Style & Standards
 
