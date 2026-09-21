@@ -58,7 +58,7 @@ public Plugin myinfo =
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC), .Rushaway",
 	description = "Adds Grenades Special Effects.",
-	version = "2.3.0",
+	version = "2.3.1",
 	url = "http://www.hlmod.ru"
 }
 
