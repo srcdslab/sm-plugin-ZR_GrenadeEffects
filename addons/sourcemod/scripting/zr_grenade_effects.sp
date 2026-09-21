@@ -58,7 +58,7 @@ public Plugin myinfo =
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC), .Rushaway",
 	description = "Adds Grenades Special Effects.",
-	version = "2.3.0",
+	version = "2.3.1",
 	url = "http://www.hlmod.ru"
 }
 
@@ -161,7 +161,7 @@ public void OnConVarChanged(Handle convar, const char[] oldValue, const char[] n
 	{
 		g_bNapalm_HE = view_as<bool>(StringToInt(newValue));
 	}
-	else if (convar == g_hCvar_Napalm_HE)
+	else if (convar == g_hCvar_Napalm_HE_Duration)
 	{
 		g_fNapalm_HE_Duration = StringToFloat(newValue);
 	}
