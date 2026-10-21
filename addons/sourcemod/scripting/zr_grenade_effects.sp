@@ -50,25 +50,25 @@ ConVar
 
 Handle
 	g_hFreeze_Timer[MAXPLAYERS+1]
-	, g_hfwdOnClientFreeze = INVALID_HANDLE, g_hfwdOnClientFreezed = INVALID_HANDLE
-	, g_hfwdOnClientIgnite = INVALID_HANDLE, g_hfwdOnClientIgnited = INVALID_HANDLE;
+	, g_hfwdOnClientFreeze = null, g_hfwdOnClientFreezed = null
+	, g_hfwdOnClientIgnite = null, g_hfwdOnClientIgnited = null;
 
 public Plugin myinfo = 
 {
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC), .Rushaway",
 	description = "Adds Grenades Special Effects.",
-	version = "2.3.1",
+	version = "2.3.2",
 	url = "http://www.hlmod.ru"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	g_hfwdOnClientFreeze = CreateGlobalForward("ZR_OnClientFreeze", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
-	g_hfwdOnClientFreezed = CreateGlobalForward("ZR_OnClientFreezed", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
+	g_hfwdOnClientFreeze = new GlobalForward("ZR_OnClientFreeze", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_hfwdOnClientFreezed = new GlobalForward("ZR_OnClientFreezed", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
 
-	g_hfwdOnClientIgnite = CreateGlobalForward("ZR_OnClientIgnite", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
-	g_hfwdOnClientIgnited = CreateGlobalForward("ZR_OnClientIgnited", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
+	g_hfwdOnClientIgnite = new GlobalForward("ZR_OnClientIgnite", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef);
+	g_hfwdOnClientIgnited = new GlobalForward("ZR_OnClientIgnited", ET_Ignore, Param_Cell, Param_Cell, Param_Float);
 
 	return APLRes_Success;
 }
@@ -96,34 +96,34 @@ public void OnPluginStart()
 	g_hCvar_Flash_Light_Distance = CreateConVar("zr_greneffect_flash_light_distance", "1000", "The light distance", 0, true, 100.0);
 	g_hCvar_Flash_Light_Duration = CreateConVar("zr_greneffect_flash_light_duration", "15.0", "The light duration in seconds", 0, true, 1.0);
 
-	g_bEnable = GetConVarBool(g_hCvar_Enable);
-	g_bTrails = GetConVarBool(g_hCvar_VFX_Trails);
-	g_iStyle = GetConVarInt(g_hCvar_VFX_Style);
-	g_bVFX_HE = GetConVarBool(g_hCvar_VFX_HE);
-	g_bVFX_Smoke = GetConVarBool(g_hCvar_VFX_Smoke);
-	g_bNapalm_HE = GetConVarBool(g_hCvar_Napalm_HE);
-	g_bSmoke_Freeze = GetConVarBool(g_hCvar_SmokeFreeze);
-	g_bFlash_Light = GetConVarBool(g_hCvar_Flash_Light);
+	g_bEnable = g_hCvar_Enable.BoolValue;
+	g_bTrails = g_hCvar_VFX_Trails.BoolValue;
+	g_iStyle = g_hCvar_VFX_Style.IntValue;
+	g_bVFX_HE = g_hCvar_VFX_HE.BoolValue;
+	g_bVFX_Smoke = g_hCvar_VFX_Smoke.BoolValue;
+	g_bNapalm_HE = g_hCvar_Napalm_HE.BoolValue;
+	g_bSmoke_Freeze = g_hCvar_SmokeFreeze.BoolValue;
+	g_bFlash_Light = g_hCvar_Flash_Light.BoolValue;
 
-	g_fNapalm_HE_Duration = GetConVarFloat(g_hCvar_Napalm_HE_Duration);
-	g_fSmoke_FreezeDistance = GetConVarFloat(g_hCvar_SmokeFreeze_Distance);
-	g_fSmoke_FreezeDuration = GetConVarFloat(g_hCvar_SmokeFreeze_Duration);
-	g_fFlash_LightDistance = GetConVarFloat(g_hCvar_Flash_Light_Distance);
-	g_fFlash_LightDuration = GetConVarFloat(g_hCvar_Flash_Light_Duration);
+	g_fNapalm_HE_Duration = g_hCvar_Napalm_HE_Duration.FloatValue;
+	g_fSmoke_FreezeDistance = g_hCvar_SmokeFreeze_Distance.FloatValue;
+	g_fSmoke_FreezeDuration = g_hCvar_SmokeFreeze_Duration.FloatValue;
+	g_fFlash_LightDistance = g_hCvar_Flash_Light_Distance.FloatValue;
+	g_fFlash_LightDuration = g_hCvar_Flash_Light_Duration.FloatValue;
 
-	HookConVarChange(g_hCvar_Enable, OnConVarChanged);
-	HookConVarChange(g_hCvar_VFX_Trails, OnConVarChanged);
-	HookConVarChange(g_hCvar_VFX_Style, OnConVarChanged);
-	HookConVarChange(g_hCvar_VFX_HE, OnConVarChanged);
-	HookConVarChange(g_hCvar_VFX_Smoke, OnConVarChanged);
-	HookConVarChange(g_hCvar_Napalm_HE, OnConVarChanged);
-	HookConVarChange(g_hCvar_Napalm_HE_Duration, OnConVarChanged);
-	HookConVarChange(g_hCvar_SmokeFreeze, OnConVarChanged);
-	HookConVarChange(g_hCvar_SmokeFreeze_Distance, OnConVarChanged);
-	HookConVarChange(g_hCvar_SmokeFreeze_Duration, OnConVarChanged);
-	HookConVarChange(g_hCvar_Flash_Light, OnConVarChanged);
-	HookConVarChange(g_hCvar_Flash_Light_Distance, OnConVarChanged);
-	HookConVarChange(g_hCvar_Flash_Light_Duration, OnConVarChanged);
+	g_hCvar_Enable.AddChangeHook(OnConVarChanged);
+	g_hCvar_VFX_Trails.AddChangeHook(OnConVarChanged);
+	g_hCvar_VFX_Style.AddChangeHook(OnConVarChanged);
+	g_hCvar_VFX_HE.AddChangeHook(OnConVarChanged);
+	g_hCvar_VFX_Smoke.AddChangeHook(OnConVarChanged);
+	g_hCvar_Napalm_HE.AddChangeHook(OnConVarChanged);
+	g_hCvar_Napalm_HE_Duration.AddChangeHook(OnConVarChanged);
+	g_hCvar_SmokeFreeze.AddChangeHook(OnConVarChanged);
+	g_hCvar_SmokeFreeze_Distance.AddChangeHook(OnConVarChanged);
+	g_hCvar_SmokeFreeze_Duration.AddChangeHook(OnConVarChanged);
+	g_hCvar_Flash_Light.AddChangeHook(OnConVarChanged);
+	g_hCvar_Flash_Light_Distance.AddChangeHook(OnConVarChanged);
+	g_hCvar_Flash_Light_Duration.AddChangeHook(OnConVarChanged);
 
 	AutoExecConfig(true, "grenade_effects", "zombiereloaded");
 
@@ -135,7 +135,7 @@ public void OnPluginStart()
 	AddNormalSoundHook(NormalSHook);
 }
 
-public void OnConVarChanged(Handle convar, const char[] oldValue, const char[] newValue)
+public void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	if (convar == g_hCvar_Enable)
 	{
@@ -206,10 +206,9 @@ public void OnClientDisconnect(int client)
 {
 	if (IsClientInGame(client))
 		ExtinguishEntity(client);
-	if (g_hFreeze_Timer[client] != INVALID_HANDLE)
+	if (g_hFreeze_Timer[client] != null)
 	{
-		KillTimer(g_hFreeze_Timer[client]);
-		g_hFreeze_Timer[client] = INVALID_HANDLE;
+		delete g_hFreeze_Timer[client];
 	}
 }
 
@@ -217,10 +216,9 @@ public void OnRoundStart(Event event, const char[] name, bool dontBroadcast)
 {
 	for (int client = 1; client <= MaxClients; client++)
 	{
-		if (g_hFreeze_Timer[client] != INVALID_HANDLE)
+		if (g_hFreeze_Timer[client] != null)
 		{
-			KillTimer(g_hFreeze_Timer[client]);
-			g_hFreeze_Timer[client] = INVALID_HANDLE;
+			delete g_hFreeze_Timer[client];
 		}
 	}
 }
@@ -232,21 +230,21 @@ public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		return;
 	}
 	char g_szWeapon[32];
-	GetEventString(event, "weapon", g_szWeapon, sizeof(g_szWeapon));
+	event.GetString("weapon", g_szWeapon, sizeof(g_szWeapon));
 
 	if (strcmp(g_szWeapon, "hegrenade", false) != 0)
 	{
 		return;
 	}
 
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 
 	if (ZR_IsClientHuman(client))
 	{
 		return;
 	}
 
-	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
 
 	Action result;
 	float fNapalmClassDuration = 0.0;
@@ -276,7 +274,7 @@ public void OnPlayerHurt(Event event, const char[] name, bool dontBroadcast)
 
 public void OnPlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
-	OnClientDisconnect(GetClientOfUserId(GetEventInt(event, "userid")));
+	OnClientDisconnect(GetClientOfUserId(event.GetInt("userid")));
 }
 
 public void OnHeDetonate(Event event, const char[] name, bool dontBroadcast) 
@@ -287,7 +285,7 @@ public void OnHeDetonate(Event event, const char[] name, bool dontBroadcast)
 	}
 
 	float origin[3];
-	origin[0] = GetEventFloat(event, "x"); origin[1] = GetEventFloat(event, "y"); origin[2] = GetEventFloat(event, "z");
+	origin[0] = event.GetFloat("x"); origin[1] = event.GetFloat("y"); origin[2] = event.GetFloat("z");
 
 	switch (g_iStyle)
 	{
@@ -308,10 +306,10 @@ public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast)
 		return;
 	}
 
-	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
 
 	float origin[3];
-	origin[0] = GetEventFloat(event, "x"); origin[1] = GetEventFloat(event, "y"); origin[2] = GetEventFloat(event, "z");
+	origin[0] = event.GetFloat("x"); origin[1] = event.GetFloat("y"); origin[2] = event.GetFloat("z");
 
 	int index = MaxClients+1;
 	float xyz[3];
@@ -343,12 +341,12 @@ public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast)
 			if ((TR_DidHit(trace) && TR_GetEntityIndex(trace) == i) || (GetVectorDistance(origin, targetOrigin) <= 100.0))
 			{
 				Freeze(i, client, g_fSmoke_FreezeDuration);
-				CloseHandle(trace);
+				delete trace;
 			}
 
 			else
 			{
-				CloseHandle(trace);
+				delete trace;
 
 				GetClientEyePosition(i, targetOrigin);
 				targetOrigin[2] -= 2.0;
@@ -360,7 +358,7 @@ public void OnSmokeDetonate(Event event, const char[] name, bool dontBroadcast)
 					Freeze(i, client, g_fSmoke_FreezeDuration);
 				}
 
-				CloseHandle(trace);
+				delete trace;
 			}
 		}
 	}
@@ -426,10 +424,9 @@ bool Freeze(int client, int attacker, float &time)
 		}
 	}
 
-	if (g_hFreeze_Timer[client] != INVALID_HANDLE)
+	if (g_hFreeze_Timer[client] != null)
 	{
-		KillTimer(g_hFreeze_Timer[client]);
-		g_hFreeze_Timer[client] = INVALID_HANDLE;
+		delete g_hFreeze_Timer[client];
 	}
 
 	SetEntityMoveType(client, MOVETYPE_NONE);
@@ -452,10 +449,10 @@ bool Freeze(int client, int attacker, float &time)
 
 public Action Unfreeze(Handle timer, any client)
 {
-	if (g_hFreeze_Timer[client] != INVALID_HANDLE)
+	if (g_hFreeze_Timer[client] != null)
 	{
 		SetEntityMoveType(client, MOVETYPE_WALK);
-		g_hFreeze_Timer[client] = INVALID_HANDLE;
+		g_hFreeze_Timer[client] = null;
 	}
 
 	return Plugin_Continue;
