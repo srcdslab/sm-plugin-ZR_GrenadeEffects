@@ -58,7 +58,7 @@ public Plugin myinfo =
 	name = "[ZR] Grenade Effects",
 	author = "FrozDark (HLModders.ru LLC), .Rushaway",
 	description = "Adds Grenades Special Effects.",
-	version = "2.3.2",
+	version = "2.3.3",
 	url = "http://www.hlmod.ru"
 }
 
@@ -614,15 +614,9 @@ public Action NormalSHook(int clients[64], int &numClients, char sample[PLATFORM
 
 stock void GetEdictsCount()
 {
-	int iCount = 0;
-
-	for (int entity = 1; entity <= MAX_EDICTS; entity++)
-	{
-		if (IsValidEdict(entity))
-			iCount++;
-	}
-
-	g_iEdictCount = iCount;
+	// Edicts in use, without worldspawn (edict 0) which the IsValidEdict() loop over
+	// every edict used to skip. LightCreate() runs for the light of every flashbang and smoke grenade.
+	g_iEdictCount = GetEntityCount() - 1;
 }
 
 /*
